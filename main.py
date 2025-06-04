@@ -18,13 +18,16 @@ def readNames(file_path: str, column_name: str):
 
 # Function - Get data from Exa.ai
 def apiCall(query_string: str):
-    raw_response = exa.search(query_string, num_results=1, category="company")
+    raw_response = exa.search_and_contents(
+        query_string, num_results=1, text=True, category="company"
+    )
     result = raw_response.results[0]
     data = {
         "domain": result.id,
         "score": result.score,
         "query": raw_response.autoprompt_string,
         "description": result.title,
+        "full_text": result.text,
     }
     return data
 
