@@ -1,15 +1,17 @@
 from exa_py import Exa
 import os
+from exa_py.api import ResultWithTextAndSummary
 import pandas as pd
 import argparse
+from typing import Any
 
 # Initialise Exa.ai SDK with api key
 exa = Exa(os.getenv("KEY_EXA_PYTHON"))
 
 
 # Function - Read company names from csv
-def readNames(file_path: str, column_name: str):
-    df_input_file = pd.read_csv(file_path)
+def readNames(file_path: str, column_name: str) -> list[Any]:
+    df_input_file: pd.DataFrame = pd.read_csv(file_path)
 
     if column_name not in df_input_file.columns:
         raise ValueError(f"Column '{column_name}' does not exist in the csv file.")
@@ -17,26 +19,32 @@ def readNames(file_path: str, column_name: str):
 
 
 # Function - Get data from Exa.ai
-def apiCall(query_string: str):
+def apiCall(query_string: str) -> list[dict[str, Any]]:
     raw_response = exa.search_and_contents(
-        query_string, num_results=1, text=True, category="company"
+        query_string,
+        type="keyword",
+        category="company",
+        livecrawl="fallback",
+        livecrawl_timeout=10000,
+        summary={
+            "query": "Include the industry sector of the company, then a short description of the company from the website text"
+        },
+        text={"max_characters": 500},
+        num_results=2,
     )
-    result = raw_response.results[0]
-    data = {
-        "domain": result.id,
-        "score": result.score,
-        "query": raw_response.autoprompt_string,
-        "description": result.title,
-        "full_text": result.text,
-    }
-    return data
+    matches = raw_response.results
+    for match in matches:
+        match["input_name"] = query_string
+    return matches
 
 
 # Function - loop over company names and fetch data
-def fetchLoop(items: list[str]):
+def fetchLoop(query_strings: list[str]):
     results = []
-    for i in items:
-        results.append(apiCall(i))
+    for query_string in query_strings:
+        matches = apiCall(query_string)
+        for match in matches:
+            results.append(match)
     return results
 
 
